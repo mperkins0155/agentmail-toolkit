@@ -167,6 +167,20 @@ describe('tools/call', () => {
         expect(msg.messageId).toBe('msg_1')
     })
 
+    it('accepts date-filter args through the real MCP path (regression: preflight double-parse)', async () => {
+        // The SDK's own arg parse coerces before/after (z.string().pipe(z.coerce.date()))
+        // into Date objects BEFORE the callback runs. runTool's preflight re-parse must
+        // round-trip those (normalize: Date -> ISO string), not reject them as non-strings.
+        const client = await connect(mockClient())
+        await client.listTools()
+
+        const result = await client.callTool({
+            name: 'list_threads',
+            arguments: { inboxId: 'inbox_1', after: '2026-01-01T00:00:00Z', before: '2026-07-01T00:00:00Z' },
+        })
+        expect(result.isError ?? false, (result.content as Array<{ text: string }>)?.[0]?.text).toBe(false)
+    })
+
     it('enforces root-level schema refinements the SDK-rebuilt input schema drops', async () => {
         // The SDK validates tools/call args against z.object(rawShape), which loses
         // ReplyToMessageParams' replyAll/to refine - runTool's preflight re-parse is

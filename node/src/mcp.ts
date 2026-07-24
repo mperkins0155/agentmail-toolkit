@@ -33,9 +33,14 @@ async function runTool(
     // The MCP SDK validates tools/call args against a plain z.object it rebuilds
     // from the raw shape we register, which drops root-level refinements (e.g.
     // ReplyToMessageParams' replyAll/to exclusivity). Re-parse with the tool's own
-    // schema so those cross-field rules are enforced before the func runs. Property
-    // values arriving from the SDK are already parsed; re-parsing is idempotent.
-    const preflight = tool.paramsSchema.safeParse(args)
+    // schema so those cross-field rules are enforced before the func runs.
+    //
+    // normalize() first: the SDK's parse has already run the shape's coerce pipes,
+    // so date filters (before/after/sendAt: z.string().pipe(z.coerce.date())) arrive
+    // as Date objects, which z.string() would reject on a second parse. normalize
+    // converts Date back to ISO string, making the re-parse a true round-trip. On
+    // the invoke() path args are raw JSON and normalize is a no-op.
+    const preflight = tool.paramsSchema.safeParse(normalize(args))
     if (!preflight.success) {
         const message = preflight.error.issues.map((issue) => issue.message).join('; ')
         return {
