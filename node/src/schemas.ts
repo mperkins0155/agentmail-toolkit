@@ -86,12 +86,18 @@ const AttachmentBaseSchema = z.object({
 // exclusivity structurally (anyOf: requires content | requires url), not just in
 // description text - description-only exclusivity kept tripping OpenAI app
 // review's "Unclear Arguments" analyzer on every send/reply/forward/draft tool.
+// Strict variants so an attachment carrying BOTH fields is rejected (the other
+// field is an unknown key in each variant), matching the API's own refine
+// ("At least one of content or url must be provided, but not both",
+// SendAttachmentSchema in agentmail-api) instead of silently dropping one.
 const AttachmentSchema = z
     .union([
-        AttachmentBaseSchema.extend({
+        z.strictObject({
+            ...AttachmentBaseSchema.shape,
             content: z.string().describe('Base64 encoded content'),
         }),
-        AttachmentBaseSchema.extend({
+        z.strictObject({
+            ...AttachmentBaseSchema.shape,
             url: z.url().describe('Publicly accessible URL to fetch the attachment from'),
         }),
     ])
@@ -129,6 +135,15 @@ export const ReplyToMessageParams = BaseMessageParams.extend({
     cc: z.array(z.string()).optional().describe('Override CC recipients. Cannot be combined with replyAll'),
     bcc: z.array(z.string()).optional().describe('Override BCC recipients. Cannot be combined with replyAll'),
     replyTo: z.array(z.string()).optional().describe('Reply-to addresses'),
+    // Mirrors the API's ReplyMessageSchema refine (agentmail-api schemas/message.ts),
+    // predicate and error text both - reject the combination locally instead of
+    // round-tripping a request the API will reject. NOTE: the MCP SDK validates
+    // tools/call args against a z.object it rebuilds from the raw shape, which
+    // drops root-level refines - runTool in mcp.ts re-parses with this schema so
+    // the refine is enforced on that path too.
+}).refine((data) => !(data.replyAll && (data.to || data.cc || data.bcc)), {
+    message: 'Cannot specify to, cc, or bcc when replyAll is true',
+    path: ['replyAll'],
 })
 
 export const ForwardMessageParams = SendMessageParams.extend({

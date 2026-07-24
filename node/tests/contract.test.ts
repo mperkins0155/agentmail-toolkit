@@ -113,10 +113,34 @@ describe('attachment content/url exclusivity', () => {
         expect(variants[1].required).not.toContain('content')
     })
 
-    it('accepts a content-only or url-only attachment and rejects one with neither', () => {
+    it('accepts a content-only or url-only attachment and rejects one with neither or both', () => {
         const args = (attachments: unknown[]) => ({ ...argsByTool.send_message, attachments })
         expect(sendMessage.paramsSchema.safeParse(args([{ filename: 'a.txt', content: 'aGk=' }])).success).toBe(true)
         expect(sendMessage.paramsSchema.safeParse(args([{ filename: 'a.txt', url: 'https://example.com/a.txt' }])).success).toBe(true)
         expect(sendMessage.paramsSchema.safeParse(args([{ filename: 'a.txt' }])).success).toBe(false)
+        // Both provided must be a hard failure (mirrors the API's SendAttachmentSchema
+        // refine) - not accepted with one field silently dropped.
+        expect(
+            sendMessage.paramsSchema.safeParse(args([{ filename: 'a.txt', content: 'aGk=', url: 'https://example.com/a.txt' }])).success
+        ).toBe(false)
+    })
+})
+
+// replyAll is strictly mutually exclusive with to/cc/bcc - the API's
+// ReplyMessageSchema refine rejects the combination. MCP input roots must be plain
+// object shapes (no root union), so the rule lives in a schema refine enforced at
+// runtime by runTool (the SDK's rebuilt root object drops refines).
+describe('replyAll recipient exclusivity', () => {
+    const reply = tools.find((t) => t.name === 'reply_to_message')!
+
+    it('rejects replyAll combined with to/cc/bcc, accepts each alone', () => {
+        const base = argsByTool.reply_to_message
+        expect(reply.paramsSchema.safeParse({ ...base, replyAll: true }).success).toBe(true)
+        expect(reply.paramsSchema.safeParse({ ...base, to: ['a@example.com'] }).success).toBe(true)
+        expect(reply.paramsSchema.safeParse({ ...base, replyAll: true, to: ['a@example.com'] }).success).toBe(false)
+        expect(reply.paramsSchema.safeParse({ ...base, replyAll: true, cc: ['a@example.com'] }).success).toBe(false)
+        expect(reply.paramsSchema.safeParse({ ...base, replyAll: true, bcc: ['a@example.com'] }).success).toBe(false)
+        // replyAll: false composes with explicit recipients (only true is exclusive)
+        expect(reply.paramsSchema.safeParse({ ...base, replyAll: false, to: ['a@example.com'] }).success).toBe(true)
     })
 })

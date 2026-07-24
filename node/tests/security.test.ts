@@ -31,8 +31,12 @@ describe('attachment download bounds', () => {
         const fetchSpy = vi.fn()
         vi.stubGlobal('fetch', fetchSpy)
 
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
         const result = await getAttachment(clientWith({ ...attachmentResponse(), downloadUrl: 'http://attacker.example/x' }), ARGS)
-        expect((result as { extractionError?: string }).extractionError).toContain('not https')
+        // Skip reasons are server-log-only (debug data must not reach tool results).
+        expect(result).not.toHaveProperty('text')
+        expect(result).not.toHaveProperty('extractionError')
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('not https'), expect.anything())
         expect(fetchSpy).not.toHaveBeenCalled()
     })
 
@@ -41,8 +45,11 @@ describe('attachment download bounds', () => {
         const fetchSpy = vi.fn()
         vi.stubGlobal('fetch', fetchSpy)
 
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
         const result = await getAttachment(clientWith({ ...attachmentResponse(), size: 26 * 1024 * 1024 }), ARGS)
-        expect((result as { extractionError?: string }).extractionError).toContain('size cap')
+        expect(result).not.toHaveProperty('text')
+        expect(result).not.toHaveProperty('extractionError')
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('too large'), expect.anything())
         expect(fetchSpy).not.toHaveBeenCalled()
     })
 
@@ -53,8 +60,11 @@ describe('attachment download bounds', () => {
             vi.fn(async () => new Response('x', { status: 200, headers: { 'content-length': String(26 * 1024 * 1024) } }))
         )
 
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
         const result = await getAttachment(clientWith(attachmentResponse()), ARGS)
-        expect((result as { extractionError?: string }).extractionError).toContain('content-length')
+        expect(result).not.toHaveProperty('text')
+        expect(result).not.toHaveProperty('extractionError')
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('content-length'), expect.anything())
     })
 
     it('skips extraction when the downloaded body exceeds the cap (no Content-Length header)', async () => {
@@ -65,8 +75,11 @@ describe('attachment download bounds', () => {
             vi.fn(async () => new Response(oversized, { status: 200 }))
         )
 
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
         const result = await getAttachment(clientWith(attachmentResponse()), ARGS)
-        expect((result as { extractionError?: string }).extractionError).toContain('exceeds')
+        expect(result).not.toHaveProperty('text')
+        expect(result).not.toHaveProperty('extractionError')
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('exceeds'), expect.anything())
     })
 
     it('propagates download failures as tool errors', async () => {
@@ -99,7 +112,7 @@ describe('attachment download bounds', () => {
 })
 
 describe('attachment extraction bounds', () => {
-    it('surfaces malformed PDF extraction failures as explicit metadata, not silence', async () => {
+    it('degrades malformed PDF extraction to bare metadata, logging the reason server-side only', async () => {
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
         const malformedPdf = new TextEncoder().encode('%PDF-1.4 this is not a real pdf')
         vi.stubGlobal(
@@ -108,7 +121,8 @@ describe('attachment extraction bounds', () => {
         )
 
         const result = await getAttachment(clientWith(attachmentResponse()), ARGS)
-        expect((result as { extractionError?: string }).extractionError).toBeTruthy()
+        // Library error strings are debug data - server logs only, never the result.
+        expect(result).not.toHaveProperty('extractionError')
         expect(result).not.toHaveProperty('text')
         expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('attachment extraction failed'), expect.anything())
     })

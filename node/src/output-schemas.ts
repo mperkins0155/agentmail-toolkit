@@ -56,8 +56,7 @@ const AttachmentMetaSchema = z.object({
 export const AttachmentResponseSchema = AttachmentMetaSchema.extend({
     downloadUrl: z.string().describe('URL to download the attachment'),
     expiresAt: isoDate().describe('Time at which the download URL expires'),
-    text: z.string().optional().describe('Extracted text (PDF/DOCX only, toolkit-added)'),
-    extractionError: z.string().optional().describe('Set when PDF/DOCX text extraction failed or was skipped (toolkit-added)'),
+    text: z.string().optional().describe('Extracted text (PDF/DOCX only, toolkit-added; absent when extraction was skipped or failed - see download URL)'),
 })
 
 // "Item" variants are what list/search endpoints return (a subset of the full
@@ -121,13 +120,35 @@ export const ListThreadsResponseSchema = PaginationSchema.extend({
     threads: z.array(ThreadItemSchema),
 })
 
-export const SearchThreadsResponseSchema = ListThreadsResponseSchema
+// Search results are list items plus `highlights` (SDK SearchThreadItem /
+// SearchMessageItem). Modeled explicitly because strip mode would otherwise
+// silently drop the match excerpts.
+const HighlightsSchema = z.object({
+    from: z.array(z.string()).optional().describe('Matched fragments from the sender address'),
+    recipients: z.array(z.string()).optional().describe('Matched fragments from recipient addresses'),
+    subject: z.array(z.string()).optional().describe('Matched fragments from the subject'),
+    text: z.array(z.string()).optional().describe('Matched fragments from the body'),
+})
+
+export const SearchThreadsResponseSchema = PaginationSchema.extend({
+    threads: z.array(
+        ThreadItemSchema.extend({
+            highlights: HighlightsSchema.optional().describe('Matched fragments per field, present when the query matched an indexed field'),
+        })
+    ),
+})
 
 export const ListMessagesResponseSchema = PaginationSchema.extend({
     messages: z.array(MessageItemSchema),
 })
 
-export const SearchMessagesResponseSchema = ListMessagesResponseSchema
+export const SearchMessagesResponseSchema = PaginationSchema.extend({
+    messages: z.array(
+        MessageItemSchema.extend({
+            highlights: HighlightsSchema.optional().describe('Matched fragments per field, present when the query matched an indexed field'),
+        })
+    ),
+})
 
 export const UpdateThreadResponseSchema = z.object({
     threadId: z.string(),

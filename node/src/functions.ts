@@ -81,7 +81,8 @@ export async function deleteThread(client: AgentMailClient, args: z.infer<typeof
 // size and otherwise hands back a URL (get-message.ts); the toolkit inlines extracted
 // attachment text into a tool result, the same class of payload, so it uses the same
 // ceiling rather than an invented one. Larger attachments degrade to metadata + the
-// download URL via extractionError.
+// download URL; skip reasons are logged server-side only (extraction diagnostics are
+// debug data OpenAI app review requires kept out of tool results).
 const MAX_ATTACHMENT_BYTES = 5.95 * 1024 * 1024
 
 export async function getAttachment(client: AgentMailClient, args: z.infer<typeof GetAttachmentParams>) {
@@ -91,12 +92,12 @@ export async function getAttachment(client: AgentMailClient, args: z.infer<typeo
 
     if (!attachment.downloadUrl.startsWith('https://')) {
         console.error('[agentmail-toolkit] attachment download URL is not https, skipping extraction', { attachmentId })
-        return { ...attachment, extractionError: 'download URL is not https' }
+        return attachment
     }
 
     if (attachment.size > MAX_ATTACHMENT_BYTES) {
         console.error('[agentmail-toolkit] attachment too large to extract, skipping', { attachmentId, size: attachment.size })
-        return { ...attachment, extractionError: 'attachment exceeds size cap' }
+        return attachment
     }
 
     // Download failures (network error, timeout, non-2xx) propagate as a tool error -
@@ -113,13 +114,13 @@ export async function getAttachment(client: AgentMailClient, args: z.infer<typeo
     const contentLength = Number(response.headers.get('content-length'))
     if (contentLength && contentLength > MAX_ATTACHMENT_BYTES) {
         console.error('[agentmail-toolkit] content-length exceeds cap, skipping', { attachmentId, contentLength })
-        return { ...attachment, extractionError: 'content-length exceeds size cap' }
+        return attachment
     }
 
     const arrayBuffer = await response.arrayBuffer()
     if (arrayBuffer.byteLength > MAX_ATTACHMENT_BYTES) {
         console.error('[agentmail-toolkit] downloaded attachment exceeds cap, skipping', { attachmentId, size: arrayBuffer.byteLength })
-        return { ...attachment, extractionError: 'downloaded attachment exceeds size cap' }
+        return attachment
     }
     const fileBytes = new Uint8Array(arrayBuffer)
 
@@ -132,16 +133,14 @@ export async function getAttachment(client: AgentMailClient, args: z.infer<typeo
         const text = detectedType === 'application/pdf' ? await extractPdfText(fileBytes) : await extractDocxText(fileBytes)
         return { ...attachment, text }
     } catch (err) {
-        // Don't let an expired signed URL response, or a malformed/adversarial PDF/DOCX,
-        // or a bug in unpdf/jszip silently look identical to "extraction wasn't
-        // attempted" - surface it as explicit fallback metadata (previously a bare
-        // `catch {}`), while still degrading gracefully to the bare attachment instead
-        // of failing the whole call.
+        // A malformed/adversarial PDF/DOCX or a bug in unpdf/jszip degrades gracefully
+        // to the bare attachment. The failure reason goes to server logs only - library
+        // error strings are debug data that must not reach tool results.
         console.error('[agentmail-toolkit] attachment extraction failed', {
             attachmentId,
             error: err instanceof Error ? err.message : String(err),
         })
-        return { ...attachment, extractionError: err instanceof Error ? err.message : String(err) }
+        return attachment
     }
 }
 

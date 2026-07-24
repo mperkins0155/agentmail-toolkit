@@ -30,6 +30,9 @@ export const threadItem = () => ({
     size: 123,
     updatedAt: NOW,
     createdAt: NOW,
+    // SDK-passthrough internals the output schemas must strip (see messageItem).
+    organization_id: 'org_internal_1',
+    pod_id: 'pod_internal_1',
 })
 
 export const messageItem = () => ({
@@ -74,6 +77,10 @@ export const draftItem = () => ({
     to: ['someone@example.com'],
     subject: 'Draft',
     updatedAt: NOW,
+    // Nested attachment carrying an undeclared debug key + item-level SDK internals -
+    // both must be stripped by the output schemas.
+    attachments: [{ attachmentId: 'att_d1', size: 10, debug_trace: 'x' }],
+    organization_id: 'org_internal_1',
 })
 
 export const draft = () => ({ ...draftItem(), text: 'Draft body', createdAt: NOW })
@@ -92,13 +99,19 @@ export const fixtureByTool: Record<string, () => unknown> = {
     update_inbox: inbox,
     delete_inbox: success,
     list_threads: () => ({ count: 1, nextPageToken: 'tok', threads: [threadItem()] }),
-    search_threads: () => ({ count: 1, threads: [threadItem()] }),
+    search_threads: () => ({
+        count: 1,
+        threads: [{ ...threadItem(), highlights: { subject: ['<em>Hello</em>'] } }],
+    }),
     get_thread: thread,
     update_thread: () => ({ threadId: 'thread_1', labels: ['inbox'] }),
     delete_thread: success,
     get_attachment: attachmentResponse,
     list_messages: () => ({ count: 1, messages: [messageItem()] }),
-    search_messages: () => ({ count: 1, messages: [messageItem()] }),
+    search_messages: () => ({
+        count: 1,
+        messages: [{ ...messageItem(), highlights: { text: ['<em>Hello</em> there'] } }],
+    }),
     send_message: sendResult,
     reply_to_message: sendResult,
     forward_message: sendResult,
