@@ -165,6 +165,37 @@ describe('tools/call', () => {
         expect(msg).not.toHaveProperty('organization_id')
         expect(msg).not.toHaveProperty('pod_id')
         expect(msg.messageId).toBe('msg_1')
+
+        // Doubly-nested: messages INSIDE a thread (fixture messages carry the same
+        // leak fields), and thread-item internals.
+        const threadResult = await client.callTool({ name: 'get_thread', arguments: { inboxId: 'inbox_1', threadId: 'thread_1' } })
+        const threadStructured = threadResult.structuredContent as Record<string, unknown> & { messages: Record<string, unknown>[] }
+        expect(threadStructured).not.toHaveProperty('organization_id')
+        expect(threadStructured.messages[0]).not.toHaveProperty('headers')
+        expect(threadStructured.messages[0]).not.toHaveProperty('organization_id')
+
+        // Nested attachments inside drafts (fixture attachment carries debug_trace).
+        const drafts = await client.callTool({ name: 'list_drafts', arguments: { inboxId: 'inbox_1' } })
+        const draftItem0 = (drafts.structuredContent as { drafts: Record<string, unknown>[] }).drafts[0]
+        expect(draftItem0).not.toHaveProperty('organization_id')
+        expect((draftItem0.attachments as Record<string, unknown>[])[0]).not.toHaveProperty('debug_trace')
+        expect((draftItem0.attachments as Record<string, unknown>[])[0].attachmentId).toBe('att_d1')
+    })
+
+    it('search results keep highlights but strip internals (regression: highlights were silently dropped)', async () => {
+        const client = await connect(mockClient())
+        await client.listTools()
+
+        const messages = await client.callTool({ name: 'search_messages', arguments: { inboxId: 'inbox_1', q: 'hello' } })
+        const msg = (messages.structuredContent as { messages: Record<string, unknown>[] }).messages[0]
+        expect(msg.highlights).toEqual({ text: ['<em>Hello</em> there'] })
+        expect(msg).not.toHaveProperty('headers')
+        expect(msg).not.toHaveProperty('organization_id')
+
+        const threads = await client.callTool({ name: 'search_threads', arguments: { inboxId: 'inbox_1', q: 'hello' } })
+        const thread0 = (threads.structuredContent as { threads: Record<string, unknown>[] }).threads[0]
+        expect(thread0.highlights).toEqual({ subject: ['<em>Hello</em>'] })
+        expect(thread0).not.toHaveProperty('organization_id')
     })
 
     it('accepts date-filter args through the real MCP path (regression: preflight double-parse)', async () => {
