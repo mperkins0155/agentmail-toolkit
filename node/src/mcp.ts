@@ -30,7 +30,21 @@ async function runTool(
     client: AgentMailClient,
     args: Record<string, unknown>
 ): Promise<CallToolResult> {
-    const { isError, result, statusCode, body } = await safeFunc(tool.func, client, args)
+    // The MCP SDK validates tools/call args against a plain z.object it rebuilds
+    // from the raw shape we register, which drops root-level refinements (e.g.
+    // ReplyToMessageParams' replyAll/to exclusivity). Re-parse with the tool's own
+    // schema so those cross-field rules are enforced before the func runs. Property
+    // values arriving from the SDK are already parsed; re-parsing is idempotent.
+    const preflight = tool.paramsSchema.safeParse(args)
+    if (!preflight.success) {
+        const message = preflight.error.issues.map((issue) => issue.message).join('; ')
+        return {
+            content: [{ type: 'text' as const, text: `Invalid arguments: ${message}` }],
+            isError: true,
+        }
+    }
+
+    const { isError, result, statusCode, body } = await safeFunc(tool.func, client, preflight.data as Record<string, unknown>)
     if (isError) {
         // Errors are returned as isError tool results (HTTP 200), so they never
         // reach the host's error logs on their own. Log here, at the real catch

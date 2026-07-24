@@ -167,6 +167,22 @@ describe('tools/call', () => {
         expect(msg.messageId).toBe('msg_1')
     })
 
+    it('enforces root-level schema refinements the SDK-rebuilt input schema drops', async () => {
+        // The SDK validates tools/call args against z.object(rawShape), which loses
+        // ReplyToMessageParams' replyAll/to refine - runTool's preflight re-parse is
+        // the only place the rule can fire on the MCP path. Prove it does.
+        const client = await connect(mockClient())
+        await client.listTools()
+
+        const result = await client.callTool({
+            name: 'reply_to_message',
+            arguments: { inboxId: 'inbox_1', messageId: 'msg_1', text: 'Hi', replyAll: true, to: ['a@example.com'] },
+        })
+        expect(result.isError).toBe(true)
+        const content = result.content as Array<{ text: string }>
+        expect(content[0].text).toContain('Cannot specify to, cc, or bcc when replyAll is true')
+    })
+
     it('fails visibly when a result drifts from its declared output schema', async () => {
         vi.spyOn(console, 'error').mockImplementation(() => {})
         const drifted = mockClient()
