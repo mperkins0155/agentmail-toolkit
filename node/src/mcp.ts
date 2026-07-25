@@ -30,7 +30,26 @@ async function runTool(
     client: AgentMailClient,
     args: Record<string, unknown>
 ): Promise<CallToolResult> {
-    const { isError, result, statusCode, body } = await safeFunc(tool.func, client, args)
+    // The MCP SDK validates tools/call args against a plain z.object it rebuilds
+    // from the raw shape we register, which drops root-level refinements (e.g.
+    // ReplyToMessageParams' replyAll/to exclusivity). Re-parse with the tool's own
+    // schema so those cross-field rules are enforced before the func runs.
+    //
+    // normalize() first: the SDK's parse has already run the shape's coerce pipes,
+    // so date filters (before/after/sendAt: z.string().pipe(z.coerce.date())) arrive
+    // as Date objects, which z.string() would reject on a second parse. normalize
+    // converts Date back to ISO string, making the re-parse a true round-trip. On
+    // the invoke() path args are raw JSON and normalize is a no-op.
+    const preflight = tool.paramsSchema.safeParse(normalize(args))
+    if (!preflight.success) {
+        const message = preflight.error.issues.map((issue) => issue.message).join('; ')
+        return {
+            content: [{ type: 'text' as const, text: `Invalid arguments: ${message}` }],
+            isError: true,
+        }
+    }
+
+    const { isError, result, statusCode, body } = await safeFunc(tool.func, client, preflight.data as Record<string, unknown>)
     if (isError) {
         // Errors are returned as isError tool results (HTTP 200), so they never
         // reach the host's error logs on their own. Log here, at the real catch
@@ -53,14 +72,14 @@ async function runTool(
     // drift (a func/schema mismatch) must fail visibly rather than silently
     // handing the client malformed structured content.
     //
-    // Parse in strip mode (z.object of the same shape), not with the loose
-    // schema directly: the MCP SDK reconstructs a plain z.object from the raw
-    // shape we register and advertises it to clients with a strict
-    // (additionalProperties: false) root. Stripping unknown top-level keys
-    // here keeps structuredContent conformant with that ADVERTISED schema, so
-    // a future SDK field is dropped instead of failing validation in strict
-    // clients. Nested objects keep their looseness (they serialize from the
-    // real looseObject instances in the shape).
+    // Parse in strip mode: the MCP SDK reconstructs a plain z.object from the
+    // raw shape we register and advertises it to clients with a strict
+    // (additionalProperties: false) root, so stripping keeps structuredContent
+    // conformant with that ADVERTISED schema. The output schemas are plain
+    // z.object at every nesting level (see output-schemas.ts), so this parse
+    // also drops undeclared NESTED fields — the SDK passes through unrecognized
+    // API keys (organization_id, pod_id, debug data), and they must never reach
+    // the model (OpenAI app review data-minimization requirement).
     const parsed = z.object(tool.outputSchema.shape).safeParse(normalize(result))
     if (!parsed.success) {
         console.error('[agentmail-toolkit] output schema mismatch', {

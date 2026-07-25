@@ -26,7 +26,13 @@ function apiErrorMessage(error: AgentMailError): string {
     }
     const base = detail ?? error.message
     const bounded = typeof base === 'string' && base.length > MAX_ERROR_BODY_LENGTH ? base.slice(0, MAX_ERROR_BODY_LENGTH) + '…' : base
-    return error.statusCode ? `${bounded} (HTTP ${error.statusCode})` : bounded
+    const withStatus = error.statusCode ? `${bounded} (HTTP ${error.statusCode})` : bounded
+    // Action-specific guidance for the statuses a model can actually act on;
+    // everything else keeps the API's own explanation.
+    if (error.statusCode === 401) return `${withStatus} — credentials are missing or invalid; reconnect or provide a valid API key`
+    if (error.statusCode === 403) return `${withStatus} — the authenticated credential lacks permission for this action`
+    if (error.statusCode === 429) return `${withStatus} — rate limited; wait before retrying`
+    return withStatus
 }
 
 // Pull a concise, human-readable message out of any thrown value - the API's own

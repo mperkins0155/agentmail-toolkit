@@ -1,9 +1,10 @@
 {
     "name": "agentmail-toolkit",
-    "version": "0.5.1",
+    "version": "0.6.0",
     "description": "AgentMail Toolkit",
     "scripts": {
         "build": "tsup",
+        "prepublishOnly": "tsup",
         "test": "vitest run",
         "lint": "eslint .",
         "prettier": "prettier --write ."
