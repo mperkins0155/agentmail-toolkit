@@ -24,6 +24,8 @@ import {
     SendDraftParams,
     DeleteDraftParams,
     AuthMeParams,
+    AgentSignUpParams,
+    AgentVerifyParams,
 } from './schemas.js'
 import {
     ListInboxesResponseSchema,
@@ -41,6 +43,8 @@ import {
     DraftSchema,
     ListDraftsResponseSchema,
     IdentitySchema,
+    AgentSignUpResponseSchema,
+    AgentVerifyResponseSchema,
 } from './output-schemas.js'
 import {
     listInboxes,
@@ -67,6 +71,8 @@ import {
     sendDraft,
     deleteDraft,
     authMe,
+    agentSignUp,
+    agentVerify,
 } from './functions.js'
 
 // All five ToolAnnotations fields (title, readOnlyHint, destructiveHint, idempotentHint,
@@ -461,6 +467,38 @@ export const tools: Tool[] = [
             readOnlyHint: true,
             destructiveHint: false,
             idempotentHint: true,
+            openWorldHint: false,
+        },
+    }),
+    defineTool({
+        name: 'agent_sign_up',
+        title: 'Agent Sign Up',
+        description:
+            "Sign up a new AgentMail agent organization, creating an inbox and an API key in one call. Use this the first time an agent needs AgentMail access — a 6-digit verification code is emailed to humanEmail; call agent_verify with it afterwards to remove the unverified plan's caps (1 inbox, 10 sends/day) at no cost. Calling this again with the same humanEmail rotates the API key and resends the code.",
+        paramsSchema: AgentSignUpParams,
+        outputSchema: AgentSignUpResponseSchema,
+        func: agentSignUp,
+        annotations: {
+            title: 'Agent Sign Up',
+            readOnlyHint: false,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: true,
+        },
+    }),
+    defineTool({
+        name: 'agent_verify',
+        title: 'Agent Verify',
+        description:
+            'Verify an unverified agent organization using the 6-digit code emailed to the human who signed up, lifting the unverified plan\'s caps (1 inbox, 10 sends/day) at no cost. Call this when a plan-cap error tells you to verify — ask your human for the code from their email. The code expires after 24 hours and allows at most 10 attempts.',
+        paramsSchema: AgentVerifyParams,
+        outputSchema: AgentVerifyResponseSchema,
+        func: agentVerify,
+        annotations: {
+            title: 'Agent Verify',
+            readOnlyHint: false,
+            destructiveHint: false,
+            idempotentHint: false,
             openWorldHint: false,
         },
     }),

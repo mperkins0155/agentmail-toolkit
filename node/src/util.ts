@@ -13,7 +13,7 @@ const MAX_ERROR_BODY_LENGTH = 500
 // bodies, and bounds the result so a large/unbounded body is never returned to callers.
 function apiErrorMessage(error: AgentMailError): string {
     const body = error.body as
-        | { message?: string; detail?: string; error?: string; name?: string; errors?: unknown[] }
+        | { message?: string; detail?: string; error?: string; name?: string; errors?: unknown[]; fix?: string }
         | string
         | undefined
     let detail: string | undefined
@@ -24,11 +24,24 @@ function apiErrorMessage(error: AgentMailError): string {
     } else if (body?.name === 'ValidationErrorResponse' && Array.isArray(body.errors)) {
         detail = `${body.name}: ${JSON.stringify(body.errors).slice(0, MAX_ERROR_BODY_LENGTH)}`
     }
+    // The API's own `fix` names the real remedy — the cap that was hit, the window it resets in,
+    // the tier that raises it and its price, or (for an unverified agent org) the verification
+    // call that lifts the cap for free. It is always better than a status-code guess, so when it
+    // is present it replaces the canned guidance below rather than sitting alongside it.
+    const fix = typeof body === 'object' && typeof body?.fix === 'string' ? body.fix : undefined
+
     const base = detail ?? error.message
-    const bounded = typeof base === 'string' && base.length > MAX_ERROR_BODY_LENGTH ? base.slice(0, MAX_ERROR_BODY_LENGTH) + '…' : base
+    const combined = fix ? `${base} — ${fix}` : base
+    const bounded =
+        typeof combined === 'string' && combined.length > MAX_ERROR_BODY_LENGTH
+            ? combined.slice(0, MAX_ERROR_BODY_LENGTH) + '…'
+            : combined
     const withStatus = error.statusCode ? `${bounded} (HTTP ${error.statusCode})` : bounded
-    // Action-specific guidance for the statuses a model can actually act on;
-    // everything else keeps the API's own explanation.
+
+    // Action-specific guidance for the statuses a model can actually act on. Skipped entirely when
+    // the API supplied a `fix`: a plan-cap 403 is not a permissions problem, and telling a model to
+    // "wait before retrying" a monthly send quota sends it down a road that does not end.
+    if (fix) return withStatus
     if (error.statusCode === 401) return `${withStatus} — credentials are missing or invalid; reconnect or provide a valid API key`
     if (error.statusCode === 403) return `${withStatus} — the authenticated credential lacks permission for this action`
     if (error.statusCode === 429) return `${withStatus} — rate limited; wait before retrying`

@@ -13,6 +13,8 @@ from .schemas import (
     ReplyToMessageParams,
     UpdateMessageParams,
     ForwardMessageParams,
+    AgentSignUpParams,
+    AgentVerifyParams,
 )
 from .functions import (
     Kwargs,
@@ -27,6 +29,8 @@ from .functions import (
     reply_to_message,
     update_message,
     forward_message,
+    agent_sign_up,
+    agent_verify,
 )
 
 
@@ -103,5 +107,28 @@ tools: List[Tool] = [
         description="Update message",
         params_schema=UpdateMessageParams,
         func=update_message,
+    ),
+    Tool(
+        name="agent_sign_up",
+        description=(
+            "Sign up a new AgentMail agent organization, creating an inbox and an API key in one call. "
+            "Use this the first time an agent needs AgentMail access — a 6-digit verification code is "
+            "emailed to human_email; call agent_verify with it afterwards to remove the unverified "
+            "plan's caps (1 inbox, 10 sends/day) at no cost. Calling this again with the same "
+            "human_email rotates the API key and resends the code."
+        ),
+        params_schema=AgentSignUpParams,
+        func=agent_sign_up,
+    ),
+    Tool(
+        name="agent_verify",
+        description=(
+            "Verify an unverified agent organization using the 6-digit code emailed to the human who "
+            "signed up, lifting the unverified plan's caps (1 inbox, 10 sends/day) at no cost. Call "
+            "this when a plan-cap error tells you to verify — ask your human for the code from their "
+            "email. The code expires after 24 hours and allows at most 10 attempts."
+        ),
+        params_schema=AgentVerifyParams,
+        func=agent_verify,
     ),
 ]

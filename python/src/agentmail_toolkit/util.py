@@ -39,5 +39,14 @@ def api_error_message(error: BaseException) -> str:
             if errors is not None:
                 detail = str(errors)
 
-    base = _bounded(detail or type(error).__name__)
+    # The API's own `fix` names the real remedy - the cap that was hit, the window it
+    # resets in, the tier that raises it and its price, or (for an unverified agent org)
+    # the verification call that lifts the cap for free. Always better than a status-code
+    # guess, so it is appended before bounding. Mirrors node/src/util.ts.
+    fix = body.get("fix") if isinstance(body, dict) else getattr(body, "fix", None)
+    combined = detail or type(error).__name__
+    if isinstance(fix, str) and fix:
+        combined = f"{combined} — {fix}"
+
+    base = _bounded(combined)
     return f"{base} (HTTP {error.status_code})" if error.status_code else base

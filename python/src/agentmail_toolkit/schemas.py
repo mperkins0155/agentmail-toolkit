@@ -92,3 +92,24 @@ class UpdateMessageParams(BaseModel):
     message_id: MessageIdField
     add_labels: Optional[List[str]] = Field(default=None, description="Labels to add")
     remove_labels: Optional[List[str]] = Field(default=None, description="Labels to remove")
+
+
+class AgentSignUpParams(BaseModel):
+    human_email: str = Field(
+        description="Email address of the human who owns the agent. A 6-digit verification code is emailed here."
+    )
+    username: str = Field(
+        description='Username for the auto-created inbox (e.g. "my-agent" creates my-agent@agentmail.to)'
+    )
+    source: Optional[str] = Field(
+        default=None,
+        description='The SDK, framework, or platform issuing this sign-up (e.g. "agentmail-mcp"). Identifies the caller',
+    )
+    referrer: Optional[str] = Field(
+        default=None,
+        description="The channel that drove this sign-up — where the agent or its developer discovered AgentMail",
+    )
+
+
+class AgentVerifyParams(BaseModel):
+    otp_code: str = Field(description="6-digit verification code emailed to the human who signed up")
