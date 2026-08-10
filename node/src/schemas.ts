@@ -212,13 +212,6 @@ export const AuthMeParams = z.object({})
 
 // Agent schemas
 
-export const AgentSignUpParams = z.object({
-    humanEmail: z.string().describe('Email address of the human who owns the agent. A 6-digit verification code is emailed here.'),
-    username: z.string().describe('Username for the auto-created inbox (e.g. "my-agent" creates my-agent@agentmail.to)'),
-    source: z.string().optional().describe('The SDK, framework, or platform issuing this sign-up (e.g. "agentmail-mcp"). Identifies the caller'),
-    referrer: z.string().optional().describe('The channel that drove this sign-up — where the agent or its developer discovered AgentMail'),
-})
-
 export const AgentVerifyParams = z.object({
     otpCode: z.string().describe('6-digit verification code emailed to the human who signed up'),
 })

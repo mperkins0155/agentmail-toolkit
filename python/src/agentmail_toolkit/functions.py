@@ -129,9 +129,5 @@ def update_message(client: AgentMail, kwargs: Kwargs):
     return client.inboxes.messages.update(**kwargs)
 
 
-def agent_sign_up(client: AgentMail, kwargs: Kwargs):
-    return client.agent.sign_up(**kwargs)
-
-
 def agent_verify(client: AgentMail, kwargs: Kwargs):
     return client.agent.verify(**kwargs)

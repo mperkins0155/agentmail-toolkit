@@ -23,7 +23,6 @@ import {
     UpdateDraftParams,
     SendDraftParams,
     DeleteDraftParams,
-    AgentSignUpParams,
     AgentVerifyParams,
 } from './schemas.js'
 
@@ -211,10 +210,6 @@ export async function deleteDraft(client: AgentMailClient, args: z.infer<typeof 
 
 export async function authMe(client: AgentMailClient) {
     return client.auth.me()
-}
-
-export async function agentSignUp(client: AgentMailClient, args: z.infer<typeof AgentSignUpParams>) {
-    return client.agent.signUp(args)
 }
 
 export async function agentVerify(client: AgentMailClient, args: z.infer<typeof AgentVerifyParams>) {

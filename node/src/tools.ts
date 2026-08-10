@@ -24,7 +24,6 @@ import {
     SendDraftParams,
     DeleteDraftParams,
     AuthMeParams,
-    AgentSignUpParams,
     AgentVerifyParams,
 } from './schemas.js'
 import {
@@ -43,7 +42,6 @@ import {
     DraftSchema,
     ListDraftsResponseSchema,
     IdentitySchema,
-    AgentSignUpResponseSchema,
     AgentVerifyResponseSchema,
 } from './output-schemas.js'
 import {
@@ -71,7 +69,6 @@ import {
     sendDraft,
     deleteDraft,
     authMe,
-    agentSignUp,
     agentVerify,
 } from './functions.js'
 
@@ -468,22 +465,6 @@ export const tools: Tool[] = [
             destructiveHint: false,
             idempotentHint: true,
             openWorldHint: false,
-        },
-    }),
-    defineTool({
-        name: 'agent_sign_up',
-        title: 'Agent Sign Up',
-        description:
-            "Sign up a new AgentMail agent organization, creating an inbox and an API key in one call. Use this the first time an agent needs AgentMail access — a 6-digit verification code is emailed to humanEmail; call agent_verify with it afterwards to remove the unverified plan's caps (1 inbox, 10 sends/day) at no cost. Calling this again with the same humanEmail rotates the API key and resends the code.",
-        paramsSchema: AgentSignUpParams,
-        outputSchema: AgentSignUpResponseSchema,
-        func: agentSignUp,
-        annotations: {
-            title: 'Agent Sign Up',
-            readOnlyHint: false,
-            destructiveHint: false,
-            idempotentHint: true,
-            openWorldHint: true,
         },
     }),
     defineTool({
