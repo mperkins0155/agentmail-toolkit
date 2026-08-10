@@ -121,6 +121,11 @@ def test_update_message_call_shape(mock_client):
     )
 
 
+def test_agent_verify_call_shape(mock_client):
+    functions.agent_verify(mock_client, {"otp_code": "123456"})
+    mock_client.agent.verify.assert_called_once_with(otp_code="123456")
+
+
 def test_get_inbox_passes_through_real_sdk_model(mock_client):
     """Serialization: the function must return the real SDK model unchanged
     (not unwrap/rewrap it), so downstream .model_dump_json() calls work."""

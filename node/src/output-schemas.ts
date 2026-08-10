@@ -205,3 +205,7 @@ export const IdentitySchema = z.object({
     inboxId: z.string().optional(),
     apiKeyId: z.string().optional(),
 })
+
+export const AgentVerifyResponseSchema = z.object({
+    verified: z.boolean().describe('Whether the organization was verified'),
+})

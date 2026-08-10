@@ -127,3 +127,7 @@ def forward_message(client: AgentMail, kwargs: Kwargs):
 
 def update_message(client: AgentMail, kwargs: Kwargs):
     return client.inboxes.messages.update(**kwargs)
+
+
+def agent_verify(client: AgentMail, kwargs: Kwargs):
+    return client.agent.verify(**kwargs)

@@ -92,3 +92,7 @@ class UpdateMessageParams(BaseModel):
     message_id: MessageIdField
     add_labels: Optional[List[str]] = Field(default=None, description="Labels to add")
     remove_labels: Optional[List[str]] = Field(default=None, description="Labels to remove")
+
+
+class AgentVerifyParams(BaseModel):
+    otp_code: str = Field(description="6-digit verification code emailed to the human who signed up")

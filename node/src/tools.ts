@@ -24,6 +24,7 @@ import {
     SendDraftParams,
     DeleteDraftParams,
     AuthMeParams,
+    AgentVerifyParams,
 } from './schemas.js'
 import {
     ListInboxesResponseSchema,
@@ -41,6 +42,7 @@ import {
     DraftSchema,
     ListDraftsResponseSchema,
     IdentitySchema,
+    AgentVerifyResponseSchema,
 } from './output-schemas.js'
 import {
     listInboxes,
@@ -67,6 +69,7 @@ import {
     sendDraft,
     deleteDraft,
     authMe,
+    agentVerify,
 } from './functions.js'
 
 // All five ToolAnnotations fields (title, readOnlyHint, destructiveHint, idempotentHint,
@@ -461,6 +464,22 @@ export const tools: Tool[] = [
             readOnlyHint: true,
             destructiveHint: false,
             idempotentHint: true,
+            openWorldHint: false,
+        },
+    }),
+    defineTool({
+        name: 'agent_verify',
+        title: 'Agent Verify',
+        description:
+            'Verify an unverified agent organization using the 6-digit code emailed to the human who signed up, lifting the unverified plan\'s caps (1 inbox, 10 sends/day) at no cost. Call this when a plan-cap error tells you to verify — ask your human for the code from their email. The code expires after 24 hours and allows at most 10 attempts.',
+        paramsSchema: AgentVerifyParams,
+        outputSchema: AgentVerifyResponseSchema,
+        func: agentVerify,
+        annotations: {
+            title: 'Agent Verify',
+            readOnlyHint: false,
+            destructiveHint: false,
+            idempotentHint: false,
             openWorldHint: false,
         },
     }),

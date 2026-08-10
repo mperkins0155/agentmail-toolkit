@@ -89,6 +89,9 @@ export const sendResult = () => ({ messageId: 'msg_1', threadId: 'thread_1' })
 
 export const identity = () => ({ scopeType: 'organization' as const, scopeId: 'org_1', organizationId: 'org_1' })
 
+
+export const agentVerifyResult = () => ({ verified: true })
+
 const success = () => ({ success: true as const })
 
 // One representative success fixture per tool, keyed by canonical tool name.
@@ -123,6 +126,7 @@ export const fixtureByTool: Record<string, () => unknown> = {
     send_draft: sendResult,
     delete_draft: success,
     auth_me: identity,
+    agent_verify: agentVerifyResult,
 }
 
 // Minimal valid arguments per tool (must satisfy each tool's paramsSchema).
@@ -151,6 +155,7 @@ export const argsByTool: Record<string, Record<string, unknown>> = {
     send_draft: { inboxId: 'inbox_1', draftId: 'draft_1' },
     delete_draft: { inboxId: 'inbox_1', draftId: 'draft_1' },
     auth_me: {},
+    agent_verify: { otpCode: '123456' },
 }
 
 // A fake AgentMailClient whose every method resolves with the matching fixture.
@@ -191,6 +196,9 @@ export function mockClient(overrides?: Record<string, unknown>): AgentMailClient
         },
         auth: {
             me: async () => f.auth_me(),
+        },
+        agent: {
+            verify: async () => f.agent_verify(),
         },
         ...overrides,
     }

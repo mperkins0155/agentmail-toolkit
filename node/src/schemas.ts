@@ -209,3 +209,9 @@ export const DeleteDraftParams = z.object({
 })
 
 export const AuthMeParams = z.object({})
+
+// Agent schemas
+
+export const AgentVerifyParams = z.object({
+    otpCode: z.string().describe('6-digit verification code emailed to the human who signed up'),
+})

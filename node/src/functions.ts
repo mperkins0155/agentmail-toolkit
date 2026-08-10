@@ -23,6 +23,7 @@ import {
     UpdateDraftParams,
     SendDraftParams,
     DeleteDraftParams,
+    AgentVerifyParams,
 } from './schemas.js'
 
 export async function listInboxes(client: AgentMailClient, args: z.infer<typeof ListItemsParams>) {
@@ -209,4 +210,8 @@ export async function deleteDraft(client: AgentMailClient, args: z.infer<typeof 
 
 export async function authMe(client: AgentMailClient) {
     return client.auth.me()
+}
+
+export async function agentVerify(client: AgentMailClient, args: z.infer<typeof AgentVerifyParams>) {
+    return client.agent.verify(args)
 }
