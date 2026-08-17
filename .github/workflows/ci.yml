@@ -25,7 +25,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # `defaults.run.working-directory` does not apply to action inputs, so
+      # the pnpm version has to be read from node/package.json explicitly.
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: node/package.json
 
       - uses: actions/setup-node@v4
         with:
